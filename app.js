@@ -1,4 +1,5 @@
 //jshint esversion:6
+require('dotenv').config(); // ENVIRONMENT VARIABLES MUST BE REQUIRED AT THE TOP OF THE PAGE ///
 const express = require('express');
 const bodyParser = require('body-parser');
 const ejs = require('ejs');
@@ -6,7 +7,9 @@ const mongoose = require('mongoose');
 const encrypt = require('mongoose-encryption');
 
 
+
 const app = express();
+
 app.use(bodyParser.urlencoded({extended: true}));
 app.set('view engine', 'ejs');
 app.use(express.static('public'));
@@ -19,8 +22,9 @@ const userSchema = new mongoose.Schema ({
     password: String
 });
 
-const secret = "thisisourlittlesecret";
-userSchema.plugin(encrypt, {secret: secret, encryptedFields: ['password']}); //this will encrypt only our password
+
+
+userSchema.plugin(encrypt, {secret: process.env.SECRET, encryptedFields: ['password']}); //this will encrypt only our password
 
 
 const User = mongoose.model("User", userSchema);
