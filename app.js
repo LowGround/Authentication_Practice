@@ -9,33 +9,34 @@ const md5 = require("md5");
 // const bcrypt = require('bcrypt'); // adding salt rounds to hashed passwords using bcrypt
 // const saltRounds = 10;
 
-//Learning how to create a web browsing session + cookies
+//Learning how to create a web browsing session + cookies with passport
 const session = require('express-session');
 const passport = require('passport');
 const passportLocalMongoose = require("passport-local-mongoose");
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const findOrCreate = require("mongoose-findorcreate");
 
 const app = express();
 
 app.use(bodyParser.urlencoded({extended: true}));
 app.set('view engine', 'ejs');
 app.use(express.static('public'));
-
+//set up the session first
 app.use(session({
     secret: "password",
     resave: false,
     saveUninitialized: false
 }));
 
+//now we can initialize passport to handle our session
 
 app.use(passport.initialize());
 app.use(passport.session());
 
 
 
-
-
-
 mongoose.connect("mongodb://localhost:27017/userDB", {useNewUrlParser: true})
+
 mongoose.set("useCreateIndex", true);
 
 
@@ -44,8 +45,11 @@ const userSchema = new mongoose.Schema ({
     password: String
 });
 
+
+//finally, we add in the passportlocalmongoose plugin to hash and salt user's passwords
 userSchema.plugin(passportLocalMongoose);
 
+userSchema.plugin(findOrCreate);
 
 
 // userSchema.plugin(encrypt, {secret: process.env.SECRET, encryptedFields: ['password']}); level 1: this will encrypt only our password
@@ -57,10 +61,35 @@ passport.use(User.createStrategy());
 passport.serializeUser(User.serializeUser());
 passport.deserializeUser(User.deserializeUser());
 
+
+
+//using google Oauth to authenticate users
+
+passport.use(new GoogleStrategy({
+    clientID: process.env.CLIENT_ID,
+    clientSecret: process.env.CLIENT_SECRET,
+    callbackURL: "http://www.localhost:3000/auth/google/secrets",
+    userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo"
+  },
+  function(accessToken, refreshToken, profile, done) {
+       User.findOrCreate({ googleId: profile.id }, function (err, user) {
+         return done(err, user);
+       });
+  }
+));
+
+
+
+
+
 app.get("/", function(req, res){
     res.render('home')
 })
 
+
+app.get("/auth/google", function(req ,res){
+    passport.authenticate("google", {scope: ["profile"]})
+})
 
 app.get("/login", function(req, res){
     res.render('login')
@@ -72,9 +101,36 @@ app.get("/register", function(req, res){
 })
 
 
+app.get("/secrets", function(req, res){
+    if (req.isAuthenticated()) {
+        res.render("secrets");
 
+    } else {
+        res.redirect("login")
+    }
+});
+// we need to logout the user and redirect them to the home page
+app.get("/logout", function(req, res){
+    req.logout();
+    res.redirect("/");
+})
 
 app.post('/register', function(req, res){
+    
+    User.register({username: req.body.username}, req.body.password, function(err, user){
+        if (err) {
+            console.log(err);
+            res.redirect('/register')
+
+        } else {
+            passport.authenticate("local")(req, res, function(){
+                res.redirect('/secrets')
+            })
+        }
+    })
+
+
+
     // bcrypt.hash(req.body.password, saltRounds, function(err, hash){
     //     const newUser = new User({
     //         email: req.body.username,
@@ -94,6 +150,20 @@ app.post('/register', function(req, res){
 
 
 app.post('/login', function(req,res){
+    const user = new User ({
+        username: req.body.username,
+        password: req.body.password
+    });
+
+    req.login(user, function(err){
+        if (err) {
+            console.log(err);
+        } else {
+            passport.authenticate("local")(req, res, function(){
+                res.redirect('/secrets')
+            })
+        }
+    })
     // const username = req.body.username;
     // // const password = md5(req.body.password);
     // const password = req.body.password;
