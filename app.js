@@ -36,13 +36,14 @@ app.use(passport.session());
 
 
 mongoose.connect("mongodb://localhost:27017/userDB", {useNewUrlParser: true})
-
 mongoose.set("useCreateIndex", true);
 
 
 const userSchema = new mongoose.Schema ({
     email: String,
-    password: String
+    password: String,
+    //adding in a new field to auth users with google
+    googleId: String
 });
 
 
@@ -58,9 +59,20 @@ userSchema.plugin(findOrCreate);
 const User = mongoose.model("User", userSchema);
 
 passport.use(User.createStrategy());
-passport.serializeUser(User.serializeUser());
-passport.deserializeUser(User.deserializeUser());
 
+
+//using the passport local mongoose package to serialize/deserialize our users
+// passport.serializeUser(User.serializeUser());
+// passport.deserializeUser(User.deserializeUser());
+passport.serializeUser(function(user, done) {
+    done(null, user.id);
+  });
+  
+  passport.deserializeUser(function(id, done) {
+    User.findById(id, function(err, user) {
+      done(err, user);
+    });
+  });
 
 
 //using google Oauth to authenticate users
@@ -72,9 +84,10 @@ passport.use(new GoogleStrategy({
     userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo"
   },
   function(accessToken, refreshToken, profile, done) {
-       User.findOrCreate({ googleId: profile.id }, function (err, user) {
+      console.log(profile);
+    User.findOrCreate({ googleId: profile.id }, function (err, user) {
          return done(err, user);
-       });
+    });
   }
 ));
 
@@ -90,6 +103,15 @@ app.get("/", function(req, res){
 app.get("/auth/google", function(req ,res){
     passport.authenticate("google", {scope: ["profile"]})
 })
+
+
+app.get("auth/google/secrets", 
+    passport.authenticate('google', {failureRedirect: '/login'}), 
+    function(req, res){
+    //if auth is successfull, we redirect to the secrets GET route
+    res.redirect('/secrets')
+})
+
 
 app.get("/login", function(req, res){
     res.render('login')
