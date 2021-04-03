@@ -1,5 +1,5 @@
 //jshint esversion:6
-require('dotenv').config(); // ENVIRONMENT VARIABLES MUST BE REQUIRED AT THE TOP OF THE PAGE ///
+require('dotenv').config(); // ENVIRONMENT CONFIG MUST BE REQUIRED AT THE TOP OF THE PAGE ///
 const express = require('express');
 const bodyParser = require('body-parser');
 const ejs = require('ejs');
@@ -83,10 +83,10 @@ passport.use(new GoogleStrategy({
     callbackURL: "http://www.localhost:3000/auth/google/secrets",
     userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo"
   },
-  function(accessToken, refreshToken, profile, done) {
-      console.log(profile);
+  function(accessToken, refreshToken, profile, cb) {
+    console.log(profile);
     User.findOrCreate({ googleId: profile.id }, function (err, user) {
-         return done(err, user);
+         return cb(err, user);
     });
   }
 ));
@@ -100,27 +100,29 @@ app.get("/", function(req, res){
 })
 
 
-app.get("/auth/google", function(req ,res){
-    passport.authenticate("google", {scope: ["profile"]})
-})
+
+app.get("/auth/google",
+  passport.authenticate('google', { scope: ["profile"] })
+);
 
 
-app.get("auth/google/secrets", 
-    passport.authenticate('google', {failureRedirect: '/login'}), 
+
+app.get("/auth/google/secrets", 
+    passport.authenticate('google', {failureRedirect: "/login" }), 
     function(req, res){
     //if auth is successfull, we redirect to the secrets GET route
-    res.redirect('/secrets')
-})
+    res.redirect("/secrets")
+});
 
 
 app.get("/login", function(req, res){
     res.render('login')
-})
+});
 
 
 app.get("/register", function(req, res){
     res.render('register')
-})
+});
 
 
 app.get("/secrets", function(req, res){
@@ -128,7 +130,7 @@ app.get("/secrets", function(req, res){
         res.render("secrets");
 
     } else {
-        res.redirect("login")
+        res.redirect("/login")
     }
 });
 // we need to logout the user and redirect them to the home page
