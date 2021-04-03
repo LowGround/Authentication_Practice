@@ -64,15 +64,15 @@ passport.use(User.createStrategy());
 //using the passport local mongoose package to serialize/deserialize our users
 // passport.serializeUser(User.serializeUser());
 // passport.deserializeUser(User.deserializeUser());
-passport.serializeUser(function(user, done) {
-    done(null, user.id);
-  });
+passport.serializeUser(function(user, cb) {
+    cb(null, user.id);
+});
   
-  passport.deserializeUser(function(id, done) {
+passport.deserializeUser(function(id, cb) {
     User.findById(id, function(err, user) {
-      done(err, user);
+      cb(err, user);
     });
-  });
+});
 
 
 //using google Oauth to authenticate users
@@ -80,7 +80,7 @@ passport.serializeUser(function(user, done) {
 passport.use(new GoogleStrategy({
     clientID: process.env.CLIENT_ID,
     clientSecret: process.env.CLIENT_SECRET,
-    callbackURL: "http://www.localhost:3000/auth/google/secrets",
+    callbackURL: "http://localhost:3000/auth/google/secrets",
     userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo"
   },
   function(accessToken, refreshToken, profile, cb) {
